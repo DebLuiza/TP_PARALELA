@@ -4,3 +4,5 @@ data/*.gz
 kmeans_seq
 kmeans_omp
 kmeans_cuda
+specs.txt
+*.deb

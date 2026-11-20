@@ -12,14 +12,14 @@
  *
  *  TEMPOS DE EXECUÇÃO (apenas o laço do K-means, sem leitura do arquivo)
  *  -------------------------------------------------------------------
- *   Sequencial ............ 16.150 s
+ *   Sequencial ............ 25.939 s
  *   OpenMP  1 thread ...... ______ s   speedup ____
  *   OpenMP  2 threads ..... ______ s   speedup ____
  *   OpenMP  4 threads ..... ______ s   speedup ____
  *   OpenMP  8 threads ..... ______ s   speedup ____
  *   OpenMP 16 threads ..... ______ s   speedup ____
  *   OpenMP 32 threads ..... ______ s   speedup ____
- *   CUDA .................. ______ s   speedup ____
+ *   CUDA .................. 2.685 s   speedup 9.66
  *
  *  Compilar: gcc -O2 -std=c11 -Wall -o kmeans_seq kmeans_seq.c -lm
  *  Executar: ./kmeans_seq data/covtype.bin 32 300
