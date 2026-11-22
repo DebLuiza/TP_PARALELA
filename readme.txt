@@ -92,7 +92,7 @@ CUDA (RTX 4060 Ti, arquitetura sm_89):
     #define CLOCK_MONOTONIC TIME_UTC
     #define clock_gettime(clock_id, ts) timespec_get((ts), TIME_UTC)
 
-  nvcc -O2 -arch=sm_89 --pre-include cuda_windows_compat.h -o kmeans_cuda.exe kmeans_cuda.cu
+  "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v13.5\bin\nvcc.exe" -O2 -arch=sm_89 --pre-include cuda_windows_compat.h -o kmeans_cuda.exe kmeans_cuda.cu
   del cuda_windows_compat.h
 
 
@@ -142,6 +142,8 @@ Metodo de medicao:
   - leitura, inicializacao, SSE e copia inicial para a GPU ficaram de fora;
   - uma execucao de aquecimento foi descartada por configuracao;
   - foram feitas 5 execucoes medidas por configuracao;
+  - todas as configuracoes e rodadas foram aceitas somente apos conferir
+    iteracoes, SSE e tamanhos dos clusters contra a versao sequencial;
   - a tabela apresenta a mediana das 5 execucoes;
   - todos os speedups usam a mediana sequencial como referencia.
 
