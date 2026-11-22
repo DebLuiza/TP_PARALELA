@@ -43,12 +43,21 @@ normalizados por z-score (media 0, desvio padrao 1) para evitar que
 atributos com escala maior dominem a distancia euclidiana.
 
 Os arquivos de dados nao sao versionados no Git. O arquivo bruto e o
-binario gerado sao ignorados pelo .gitignore, e podem ser reproduzidos
-com os comandos abaixo (requer Python 3, NumPy e wget ou curl):
+binario gerado sao ignorados pelo .gitignore. A conversao requer Python 3
+e NumPy.
+
+Linux:
 
   mkdir -p data
   wget -O data/covtype.data.gz https://archive.ics.uci.edu/ml/machine-learning-databases/covtype/covtype.data.gz
   python3 scripts/prepare_dataset.py data/covtype.data.gz data/covtype.bin --drop-last
+
+Windows PowerShell:
+
+  New-Item -ItemType Directory -Force data
+  py -m pip install numpy
+  curl.exe -L https://archive.ics.uci.edu/ml/machine-learning-databases/covtype/covtype.data.gz -o data/covtype.data.gz
+  py scripts/prepare_dataset.py data/covtype.data.gz data/covtype.bin --drop-last
 
 Formato do arquivo .bin:
   int32 N | int32 D | N*D float32 (ordem por linha)
@@ -60,12 +69,18 @@ Formato do arquivo .bin:
   kmeans_omp.c                versao paralela OpenMP (CPU multicore)
   kmeans_cuda.cu              versao paralela CUDA (GPU)
   scripts/prepare_dataset.py  conversao da base para o formato binario
+  perguntas_entrevista.txt    roteiro de estudo para a entrevista
   data/                       dataset gerado localmente, nao versionado
   readme.txt                  este arquivo
 
 
 4. COMPILACAO
 ---------------------------------------------------------------------
+Pre-requisitos usados no Windows:
+  - MSYS2 UCRT64 com GCC e suporte a OpenMP;
+  - Visual Studio Build Tools 2022 com as ferramentas C++ para o nvcc;
+  - NVIDIA CUDA Toolkit 13.5 e driver NVIDIA compativel.
+
 Os comandos abaixo foram verificados no Windows 11. Antes de usar o GCC do
 MSYS2, coloque seu diretorio no inicio do PATH para evitar que outra copia de
 libwinpthread-1.dll seja carregada:
