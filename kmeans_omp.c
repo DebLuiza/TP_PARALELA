@@ -8,27 +8,28 @@
  *  Base de dados: Covertype (UCI) - 581.012 pontos x 54 atributos
  *  Parâmetros: K = 32, max_iter = 300
  *  Resultado de referência: 34 iterações, SSE = 1.440870e+07
- *  Máquina de teste: ______________________
+ *  Máquina de teste: AMD Ryzen 7 5700X3D (8 núcleos/16 threads lógicas),
+ *                    NVIDIA GeForce RTX 4060 Ti, Windows 11 Pro
+ *  Método: mediana de 5 execuções após 1 aquecimento por configuração
  *
- *  TEMPOS DE EXECUCAO - TESTES PRELIMINARES (windows):
- *  Sequencial ............ 25.939 s
- *   OpenMP  1 thread ...... 0.149 s   speedup 140.53
- *   OpenMP  2 threads ..... 0.097 s   speedup 215.87
- *   OpenMP  4 threads ..... 0.098 s   speedup 213.66
- *   OpenMP  8 threads ..... 0.105 s   speedup 199.42
- *   OpenMP 16 threads ..... 0.099 s   speedup 211.51
- *   OpenMP 32 threads ..... 0.104 s   speedup 201.34
- *   CUDA .................. 2.685 s   speedup 9.66
+ *  TEMPOS DE EXECUCAO (apenas o laco do K-means, sem leitura do arquivo):
+ *   Sequencial ............ 16.180 s   speedup 1.00
+ *   OpenMP  1 thread ...... 16.974 s   speedup 0.95
+ *   OpenMP  2 threads .....  8.619 s   speedup 1.88
+ *   OpenMP  4 threads .....  4.406 s   speedup 3.67
+ *   OpenMP  8 threads .....  2.536 s   speedup 6.38
+ *   OpenMP 16 threads .....  1.744 s   speedup 9.28
+ *   OpenMP 32 threads .....  1.738 s   speedup 9.31 (sobrescricao)
+ *   CUDA ..................  0.614 s   speedup 26.35
  * 
  *  Resultado: 34 iteracoes, SSE = 1.440870e+07
  *
- * OBS: Os testes oficiais de desempenho serao
- * realizados na mesma maquina, incluindo as versoes
- * sequencial, OpenMP e CUDA.
+ * OBS: Os testes foram realizados na mesma maquina. Como a CPU possui
+ * 16 threads logicas, o teste com 32 threads usa sobrescricao.
  *
  *  Compilar: gcc -O2 -std=c11 -Wall -Wextra -fopenmp -o kmeans_omp.exe kmeans_omp.c -lm
- *  Executar: OMP_NUM_THREADS = "4"
-.\kmeans_omp.exe .\data\covtype.bin 32 300
+ *  Executar (PowerShell): $env:OMP_NUM_THREADS=4
+ *                         .\kmeans_omp.exe .\data\covtype.bin 32 300
  */
 
 #define _POSIX_C_SOURCE 199309L

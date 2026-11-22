@@ -8,18 +8,20 @@
  *  Base de dados: Covertype (UCI) - 581.012 pontos x 54 atributos
  *  Parâmetros: K = 32, max_iter = 300
  *  Resultado de referência: 34 iterações, SSE = 1.440870e+07
- *  Máquina de teste: ______________________
+ *  Máquina de teste: AMD Ryzen 7 5700X3D (8 núcleos/16 threads lógicas),
+ *                    NVIDIA GeForce RTX 4060 Ti, Windows 11 Pro
+ *  Método: mediana de 5 execuções após 1 aquecimento por configuração
  *
  *  TEMPOS DE EXECUÇÃO (apenas o laço do K-means, sem leitura do arquivo)
  *  -------------------------------------------------------------------
- *   Sequencial ............ 25.939 s
- *   OpenMP  1 thread ...... ______ s   speedup ____
- *   OpenMP  2 threads ..... ______ s   speedup ____
- *   OpenMP  4 threads ..... ______ s   speedup ____
- *   OpenMP  8 threads ..... ______ s   speedup ____
- *   OpenMP 16 threads ..... ______ s   speedup ____
- *   OpenMP 32 threads ..... ______ s   speedup ____
- *   CUDA .................. 2.685 s   speedup 9.66
+ *   Sequencial ............ 16.180 s   speedup 1.00
+ *   OpenMP  1 thread ...... 16.974 s   speedup 0.95
+ *   OpenMP  2 threads .....  8.619 s   speedup 1.88
+ *   OpenMP  4 threads .....  4.406 s   speedup 3.67
+ *   OpenMP  8 threads .....  2.536 s   speedup 6.38
+ *   OpenMP 16 threads .....  1.744 s   speedup 9.28
+ *   OpenMP 32 threads .....  1.738 s   speedup 9.31 (sobrescrição)
+ *   CUDA ..................  0.614 s   speedup 26.35
  *
  *  Compilar: gcc -O2 -std=c11 -Wall -o kmeans_seq kmeans_seq.c -lm
  *  Executar: ./kmeans_seq data/covtype.bin 32 300

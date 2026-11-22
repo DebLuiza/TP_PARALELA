@@ -66,16 +66,34 @@ Formato do arquivo .bin:
 
 4. COMPILACAO
 ---------------------------------------------------------------------
-Os comandos abaixo foram executados no Ubuntu dentro do WSL 2.
+Os comandos abaixo foram verificados no Windows 11. Antes de usar o GCC do
+MSYS2, coloque seu diretorio no inicio do PATH para evitar que outra copia de
+libwinpthread-1.dll seja carregada:
+
+  $env:Path = "C:\msys64\ucrt64\bin;$env:Path"
 
 Sequencial:
-  gcc -O2 -std=c11 -Wall -o kmeans_seq kmeans_seq.c -lm
+  gcc -O2 -std=c11 -Wall -o kmeans_seq.exe kmeans_seq.c -lm
 
 OpenMP:
-  gcc -O2 -std=c11 -Wall -fopenmp -o kmeans_omp kmeans_omp.c -lm
+  gcc -O2 -std=c11 -Wall -fopenmp -o kmeans_omp.exe kmeans_omp.c -lm
 
-CUDA (RTX 3050, arquitetura sm_86):
-  nvcc -O2 -arch=sm_86 -o kmeans_cuda kmeans_cuda.cu
+CUDA (RTX 4060 Ti, arquitetura sm_89):
+  O codigo usa clock_gettime para medir somente a leitura do arquivo. No
+  Linux, compile diretamente:
+
+  nvcc -O2 -arch=sm_89 -o kmeans_cuda kmeans_cuda.cu
+
+  No Windows, execute no "x64 Native Tools Command Prompt for VS 2022". Como
+  clock_gettime nao existe no MSVC, crie um cabecalho temporario, compile e
+  remova-o; nenhuma funcao do programa precisa ser alterada:
+
+  Conteudo de cuda_windows_compat.h:
+    #define CLOCK_MONOTONIC TIME_UTC
+    #define clock_gettime(clock_id, ts) timespec_get((ts), TIME_UTC)
+
+  nvcc -O2 -arch=sm_89 --pre-include cuda_windows_compat.h -o kmeans_cuda.exe kmeans_cuda.cu
+  del cuda_windows_compat.h
 
 
 5. EXECUCAO
@@ -87,68 +105,81 @@ Parametros: <dataset.bin> <K> <max_iter> [arquivo_rotulos.txt]
 
 Parametros usados nas medicoes: K = 32, max_iter = 300.
 
-Sequencial:
-  ./kmeans_seq data/covtype.bin 32 300
+Sequencial (PowerShell):
+  .\kmeans_seq.exe .\data\covtype.bin 32 300
 
 OpenMP (o numero de threads e definido por OMP_NUM_THREADS):
-  OMP_NUM_THREADS=1  ./kmeans_omp data/covtype.bin 32 300
-  OMP_NUM_THREADS=2  ./kmeans_omp data/covtype.bin 32 300
-  OMP_NUM_THREADS=4  ./kmeans_omp data/covtype.bin 32 300
-  OMP_NUM_THREADS=8  ./kmeans_omp data/covtype.bin 32 300
-  OMP_NUM_THREADS=16 ./kmeans_omp data/covtype.bin 32 300
-  OMP_NUM_THREADS=32 ./kmeans_omp data/covtype.bin 32 300
+  $env:OMP_NUM_THREADS=1;  .\kmeans_omp.exe .\data\covtype.bin 32 300
+  $env:OMP_NUM_THREADS=2;  .\kmeans_omp.exe .\data\covtype.bin 32 300
+  $env:OMP_NUM_THREADS=4;  .\kmeans_omp.exe .\data\covtype.bin 32 300
+  $env:OMP_NUM_THREADS=8;  .\kmeans_omp.exe .\data\covtype.bin 32 300
+  $env:OMP_NUM_THREADS=16; .\kmeans_omp.exe .\data\covtype.bin 32 300
+  $env:OMP_NUM_THREADS=32; .\kmeans_omp.exe .\data\covtype.bin 32 300
 
 CUDA:
-  ./kmeans_cuda data/covtype.bin 32 300
+  .\kmeans_cuda.exe .\data\covtype.bin 32 300
 
 
 6. AMBIENTE E RESULTADOS
 ---------------------------------------------------------------------
 Ambiente da medicao:
-  Sistema: WSL 2 / Ubuntu
-  GPU: NVIDIA GeForce RTX 3050
-  Driver NVIDIA no Windows: 610.88
+  Sistema: Windows 11 Pro 64 bits (10.0.26200)
+  CPU: AMD Ryzen 7 5700X3D, 8 nucleos e 16 threads logicas
+  GPU: NVIDIA GeForce RTX 4060 Ti, 8 GB
+  Driver NVIDIA: 610.88
   CUDA Toolkit: 13.5
-  Arquitetura CUDA compilada: sm_86
+  Arquitetura CUDA compilada: sm_89
+  GCC/MSYS2: 16.1.0
+  MSVC: 19.44.35230
+  Plano de energia: Equilibrado
 
 Dataset e parametros da medicao:
   Dataset: Covertype convertido para data/covtype.bin
   N = 581012, D = 54, K = 32, max_iter = 300
 
-Resultados obtidos:
+Metodo de medicao:
+  - apenas o laco do K-means foi cronometrado;
+  - leitura, inicializacao, SSE e copia inicial para a GPU ficaram de fora;
+  - uma execucao de aquecimento foi descartada por configuracao;
+  - foram feitas 5 execucoes medidas por configuracao;
+  - a tabela apresenta a mediana das 5 execucoes;
+  - todos os speedups usam a mediana sequencial como referencia.
+
+Resultados obtidos na mesma maquina:
 
   Versao                Tempo K-means (s)    Speedup
-  Sequencial            25.939               1.00
-  OpenMP  1 thread       ______               ____
-  OpenMP  2 threads      ______               ____
-  OpenMP  4 threads      ______               ____
-  OpenMP  8 threads      ______               ____
-  OpenMP 16 threads      ______               ____
-  OpenMP 32 threads      ______               ____
-  CUDA                   2.685               9.66
+  Sequencial            16.180               1.00
+  OpenMP  1 thread      16.974               0.95
+  OpenMP  2 threads       8.619               1.88
+  OpenMP  4 threads       4.406               3.67
+  OpenMP  8 threads       2.536               6.38
+  OpenMP 16 threads       1.744               9.28
+  OpenMP 32 threads       1.738               9.31
+  CUDA                    0.614              26.35
 
 Speedup = tempo sequencial / tempo da versao paralela.
 
-Validacao sequencial x CUDA:
+A CPU possui 16 threads logicas. Portanto, a configuracao OpenMP com 32
+threads usa sobrescricao: ela foi medida para atender ao enunciado, mas nao
+representa 32 nucleos ou 32 threads de hardware. A diferenca pequena entre
+16 e 32 threads deve ser interpretada considerando essa limitacao.
+
+Validacao sequencial x OpenMP x CUDA:
   Iteracoes: 34 (convergiu)
   SSE: 1.440870e+07
-  Tamanhos de cluster identicos nas duas versoes:
+  Tamanhos de cluster identicos nas tres versoes:
   1899 2845 8750 16504 37142 9259 14280 7273
   1147 78668 9700 15573 6450 29969 11633 6452
   77593 33191 14720 4021 14033 21278 17431 12515
   2032 2729 2589 9645 46767 7591 52510 4823
 
-Tempos de leitura observados, excluidos do speedup:
-  Sequencial: 0.473 s
-  CUDA:      0.464 s
-
 A versao sequencial levou mais de 10 segundos na base real, atendendo ao
-requisito da especificacao. As medicoes de OpenMP ainda precisam ser
-preenchidas depois da implementacao e execucao da versao OpenMP.
+requisito da especificacao. As tres versoes convergiram com o mesmo SSE e a
+mesma distribuicao de pontos entre os clusters.
 
 
 7. SITUACAO DA IMPLEMENTACAO
 ---------------------------------------------------------------------
   Sequencial: implementada e validada.
-  CUDA: implementada e validada na NVIDIA GeForce RTX 3050.
-  OpenMP: ainda pendente.
+  OpenMP: implementada e validada para 1, 2, 4, 8, 16 e 32 threads.
+  CUDA: implementada e validada na NVIDIA GeForce RTX 4060 Ti.
