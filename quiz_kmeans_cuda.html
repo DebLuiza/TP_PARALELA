@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz — K-means CUDA</title>
+  <style>
+    :root { --bg:#10131a; --card:#1a202c; --soft:#252d3c; --text:#f5f7fb; --muted:#aeb8c9; --blue:#7dd3fc; --green:#86efac; --red:#fca5a5; --line:#39455b; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; color:var(--text); background:radial-gradient(circle at 10% 0,#17384c,transparent 32rem),var(--bg); font:16px/1.5 system-ui,sans-serif; }
+    main { width:min(820px,calc(100% - 24px)); margin:auto; padding:42px 0 56px; }
+    .eyebrow { color:var(--blue); font-size:.78rem; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+    h1 { margin:8px 0; font-size:clamp(2rem,6vw,3.5rem); line-height:1.05; }
+    h2 { line-height:1.25; }
+    .intro,.hint { color:var(--muted); }
+    .stats { display:flex; justify-content:space-between; margin:25px 0 8px; color:var(--muted); }
+    .stats strong { color:var(--text); }
+    .track { height:8px; margin-bottom:22px; overflow:hidden; border-radius:9px; background:#2a3445; }
+    #bar { width:0; height:100%; background:linear-gradient(90deg,#38bdf8,#a78bfa); transition:width .2s; }
+    .card { padding:clamp(22px,5vw,40px); border:1px solid var(--line); border-radius:22px; background:rgba(26,32,44,.94); box-shadow:0 24px 70px #0005; }
+    .tag { display:inline-block; padding:3px 10px; border:1px solid #315b72; border-radius:99px; color:var(--blue); background:#143040; font-size:.8rem; font-weight:750; }
+    #question { margin:18px 0 24px; font-size:clamp(1.35rem,3vw,1.8rem); }
+    #options { display:grid; gap:11px; }
+    .option,.button { border:1px solid var(--line); border-radius:11px; color:var(--text); background:var(--soft); cursor:pointer; font:inherit; }
+    .option { width:100%; padding:14px 16px; text-align:left; }
+    .option:hover:not(:disabled),.option:focus-visible { border-color:var(--blue); outline:2px solid #7dd3fc33; }
+    .option:disabled { cursor:default; }
+    .option.correct { border-color:var(--green); color:var(--green); background:#15392a; }
+    .option.wrong { border-color:var(--red); color:var(--red); background:#452128; }
+    #feedback { margin-top:20px; padding:15px 17px; border-left:4px solid var(--blue); border-radius:9px; background:#142333; }
+    #feedback-title { margin-bottom:5px; font-weight:800; }
+    #feedback-title.correct { color:var(--green); }
+    #feedback-title.wrong { color:var(--red); }
+    #explanation { margin:0 0 7px; color:#d8e0ec; }
+    #reference { color:var(--blue); font: .9rem ui-monospace,Consolas,monospace; }
+    .actions { display:flex; justify-content:flex-end; margin-top:22px; }
+    .button { padding:10px 16px; border-color:var(--blue); color:#07131b; background:var(--blue); font-weight:800; }
+    .button:disabled { cursor:not-allowed; opacity:.4; }
+    .result { text-align:center; }
+    #final-score { margin:8px 0 16px; color:var(--blue); font-size:3rem; font-weight:850; }
+    [hidden] { display:none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">Computação paralela · CUDA</div>
+      <h1>Quiz: K-means CUDA</h1>
+      <p class="intro">Responda sobre threads, memória, kernels, atomics e sincronização do código.</p>
+    </header>
+
+    <div class="stats" aria-live="polite">
+      <span>Pergunta <strong id="current">1</strong> de <strong id="total">20</strong></span>
+      <span><strong id="score">0</strong> acertos</span>
+    </div>
+    <div class="track" role="progressbar" aria-label="Progresso" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0"><div id="bar"></div></div>
+
+    <section class="card" id="quiz" aria-labelledby="question">
+      <span class="tag" id="category"></span>
+      <h2 id="question"></h2>
+      <div id="options"></div>
+      <div id="feedback" hidden aria-live="polite">
+        <div id="feedback-title"></div>
+        <p id="explanation"></p>
+        <div id="reference"></div>
+      </div>
+      <div class="actions"><button class="button" id="next" type="button" disabled>Próxima pergunta</button></div>
+    </section>
+
+    <section class="card result" id="result" hidden>
+      <div class="eyebrow">Fim do quiz</div>
+      <h2>Resultado</h2>
+      <div id="final-score"></div>
+      <p id="message" class="intro"></p>
+      <button class="button" id="restart" type="button">Refazer quiz</button>
+    </section>
+    <p class="hint">As explicações indicam as linhas de <code>kmeans_cuda.cu</code>.</p>
+  </main>
+
+  <script>
+    const questions = [
+      { c:"Configuração", q:"O que significa THREADS_POR_BLOCO = 256?", o:["Cada ponto tem 256 atributos.","Cada bloco usa 256 threads.","A GPU executa só 256 pontos.","Cada cluster tem 256 centróides."], a:1, e:"O valor define o tamanho dos blocos usados pelos kernels.", r:"kmeans_cuda.cu:43-50" },
+      { c:"Índices", q:"Como o kernel obtém o índice global da thread?", o:["threadIdx.x","blockIdx.x + blockDim.x","blockIdx.x * blockDim.x + threadIdx.x","mudancas_device"], a:2, e:"A fórmula combina bloco, tamanho do bloco e posição da thread.", r:"kmeans_cuda.cu:242-249" },
+      { c:"Segurança", q:"Por que retornar quando i >= n?", o:["Para impedir acesso fora do vetor.","Para encerrar a GPU.","Para remover clusters vazios.","Para sincronizar blocos."], a:0, e:"A grade pode ter threads sobrando quando N não é múltiplo do bloco.", r:"kmeans_cuda.cu:242-249" },
+      { c:"Memória", q:"O que 0xFF representa no cudaMemset dos rótulos?", o:["Todos os rótulos zero.","Rótulos -1, ainda não atribuídos.","Uma cópia host → device.","Memória compartilhada."], a:1, e:"O padrão 0xFF em um int representa -1 e faz a primeira atribuição contar mudanças.", r:"kmeans_cuda.cu:584-589" },
+      { c:"Kernel 1", q:"Qual é a unidade de trabalho de atribuir_pontos_kernel?", o:["Uma thread calcula um ponto.","Uma thread calcula um cluster.","Um bloco calcula um atributo.","A CPU calcula um ponto."], a:0, e:"A thread percorre os K centróides e grava o rótulo de seu ponto.", r:"kmeans_cuda.cu:232-286" },
+      { c:"Concorrência", q:"Por que mudancas_device usa atomicAdd?", o:["Para ler centróides.","Várias threads incrementam o mesmo contador.","Para calcular distância.","Para sincronizar todos os blocos."], a:1, e:"O incremento precisa ser indivisível para não perder atualizações.", r:"kmeans_cuda.cu:279-285" },
+      { c:"Transferência", q:"Quando dados e centróides vão para a GPU?", o:["A cada distância.","Uma vez antes do laço.","Depois do SSE.","Nunca; a GPU lê a CPU diretamente."], a:1, e:"As cópias iniciais acontecem antes do treinamento; os kernels usam as cópias do device.", r:"kmeans_cuda.cu:575-589" },
+      { c:"Memória compartilhada", q:"Qual é o layout do acumulador compartilhado?", o:["K*D doubles e depois K ints.","N floats e depois K centróides.","Um int por thread.","Somente rótulos."], a:0, e:"A região começa com somas e, logo depois, contém as contagens.", r:"kmeans_cuda.cu:301-310" },
+      { c:"Sincronização", q:"Por que há __syncthreads() depois do zeramento?", o:["Para esperar todas as threads zerarem antes de acumular.","Para sincronizar CPU e GPU.","Para copiar dados ao host.","Para encerrar outro kernel."], a:0, e:"Sem essa barreira, uma thread poderia acumular enquanto outra ainda inicializa a memória.", r:"kmeans_cuda.cu:314-327" },
+      { c:"Kernel 2", q:"Por que a acumulação usa atomicAdd na shared memory?", o:["Threads do bloco podem atualizar o mesmo cluster.","Shared memory só aceita atomics.","Não existe memória global.","AtomicAdd calcula a média."], a:0, e:"Pontos do mesmo cluster podem ser processados simultaneamente.", r:"kmeans_cuda.cu:340-355" },
+      { c:"Grid-stride", q:"O que o passo gridDim.x * blockDim.x permite?", o:["Reutilizar uma thread em outros pontos.","Trocar de GPU.","Mudar o tamanho do bloco.","Executar o kernel só uma vez."], a:0, e:"O padrão permite processar mais pontos que o total de threads lançadas.", r:"kmeans_cuda.cu:329-337" },
+      { c:"Parciais", q:"Por que copiar acumuladores para a memória global?", o:["A shared memory desaparece quando o bloco termina.","A global é sempre mais rápida.","Rótulos só existem no host.","Para evitar médias."], a:0, e:"As parciais sobrevivem ao fim do bloco e podem ser lidas pela redução.", r:"kmeans_cuda.cu:358-378" },
+      { c:"Kernel 3", q:"Qual é a unidade de trabalho da redução?", o:["Um ponto.","Um atributo.","Um cluster.","Um arquivo."], a:2, e:"Uma thread junta as parciais e calcula um centróide inteiro.", r:"kmeans_cuda.cu:381-400" },
+      { c:"Cluster vazio", q:"O que acontece quando quantidade == 0?", o:["Centróide vira zero.","Cria centróide aleatório.","Preserva o centróide anterior.","Move todos os pontos."], a:2, e:"Sem pontos não há média; retornar evita divisão por zero.", r:"kmeans_cuda.cu:407-411" },
+      { c:"Ordem", q:"Qual é a sequência de uma iteração?", o:["Redução, atribuição, acumulação.","Atribuição, teste, acumulação, redução.","SSE, redução, cópia.","Acumulação, SSE, atribuição."], a:1, e:"O programa atribui pontos, verifica convergência e só então atualiza centróides.", r:"kmeans_cuda.cu:615-652" },
+      { c:"Sincronização", q:"Qual é o papel da cópia de mudancas_device?", o:["Só imprimir o valor.","Trazer o contador e esperar a atribuição terminar.","Atualizar centróides na CPU.","Liberar shared memory."], a:1, e:"A cópia device → host sincroniza antes da decisão de parada.", r:"kmeans_cuda.cu:630-639" },
+      { c:"Medição", q:"O que fica fora do tempo dos eventos?", o:["O laço inteiro.","Leitura e cópia inicial.","Atribuição.","Redução."], a:1, e:"O evento inicial é registrado depois da preparação e antes do laço.", r:"kmeans_cuda.cu:602-614" },
+      { c:"Validação", q:"Onde o SSE é calculado?", o:["No kernel de atribuição.","No kernel de acumulação.","No host após copiar os resultados.","Na redução usando contagens."], a:2, e:"O host usa calcular_sse depois de receber rótulos e centróides finais.", r:"kmeans_cuda.cu:665-676" },
+      { c:"Erros", q:"O que verificar_kernel verifica logo após o lançamento?", o:["Erros imediatos de configuração ou lançamento.","SSE negativo.","Clusters iguais.","Dataset normalizado."], a:0, e:"cudaGetLastError detecta erros associados ao lançamento; sincronizações expõem erros de execução posteriores.", r:"kmeans_cuda.cu:69-82" },
+      { c:"Limpeza", q:"Por que o final chama cudaFree?", o:["Para liberar buffers da GPU.","Para recalcular centróides.","Para zerar rótulos.","Para sincronizar threads."], a:0, e:"Memória alocada com cudaMalloc precisa ser liberada explicitamente.", r:"kmeans_cuda.cu:706-726" }
+    ];
+
+    const state = { i:0, score:0, answered:false };
+    const $ = id => document.getElementById(id);
+    const track = document.querySelector(".track");
+
+    function render() {
+      const item = questions[state.i];
+      state.answered = false;
+      $("current").textContent = state.i + 1;
+      $("score").textContent = state.score;
+      $("category").textContent = item.c;
+      $("question").textContent = item.q;
+      $("options").replaceChildren();
+      $("feedback").hidden = true;
+      $("next").disabled = true;
+      $("next").textContent = state.i === questions.length - 1 ? "Ver resultado" : "Próxima pergunta";
+      $("bar").style.width = `${state.i / questions.length * 100}%`;
+      track.setAttribute("aria-valuenow", state.i);
+      item.o.forEach((text, index) => {
+        const button = document.createElement("button");
+        button.className = "option";
+        button.type = "button";
+        button.textContent = `${String.fromCharCode(65 + index)}. ${text}`;
+        button.addEventListener("click", () => answer(index));
+        $("options").appendChild(button);
+      });
+    }
+
+    function answer(selected) {
+      if (state.answered) return;
+      state.answered = true;
+      const item = questions[state.i];
+      [...$("options").children].forEach((button, index) => {
+        button.disabled = true;
+        if (index === item.a) button.classList.add("correct");
+        if (index === selected && selected !== item.a) button.classList.add("wrong");
+      });
+      const correct = selected === item.a;
+      if (correct) state.score++;
+      $("score").textContent = state.score;
+      $("feedback-title").textContent = correct ? "Resposta correta" : "Resposta incorreta";
+      $("feedback-title").className = `feedback-title ${correct ? "correct" : "wrong"}`;
+      $("explanation").textContent = item.e;
+      $("reference").textContent = `Referência: ${item.r}`;
+      $("feedback").hidden = false;
+      $("next").disabled = false;
+    }
+
+    function showResult() {
+      $("quiz").hidden = true;
+      $("result").hidden = false;
+      $("bar").style.width = "100%";
+      track.setAttribute("aria-valuenow", questions.length);
+      $("final-score").textContent = `${state.score}/${questions.length}`;
+      $("message").textContent = state.score === questions.length ? "Você dominou o fluxo principal do K-means CUDA." : state.score >= questions.length * .7 ? "Boa base. Revise as explicações das dúvidas." : "Releia os kernels e tente novamente, observando quem escreve cada memória.";
+    }
+
+    $("next").addEventListener("click", () => {
+      if (!state.answered) return;
+      if (state.i === questions.length - 1) return showResult();
+      state.i++;
+      render();
+    });
+
+    $("restart").addEventListener("click", () => {
+      state.i = 0;
+      state.score = 0;
+      $("quiz").hidden = false;
+      $("result").hidden = true;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

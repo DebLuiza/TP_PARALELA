@@ -6,3 +6,5 @@ kmeans_omp
 kmeans_cuda
 specs.txt
 *.deb
+docs
+kmeans_explicado.md
