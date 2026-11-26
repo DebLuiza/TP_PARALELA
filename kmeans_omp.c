@@ -119,28 +119,41 @@ static void inicializar_centroides(const float *X, float *C, int n, int d, int k
  */
 static long atribuir_pontos(const float *X, const float *C, int *labels,
                             int n, int d, int k) {
+
+    // Contador de pontos que mudaram de cluster nesta iteracao                            
     long mudancas = 0;
     int i;
 
     #pragma omp parallel for reduction(+:mudancas) schedule(static)
     for (i = 0; i < n; i++) {
+        // Localiza o primeiro atributo do ponto atual na memoria.
         const float *p = &X[(size_t)i * d];
+        // Prepara a busca pelo centroide mais proximo.
         int melhor = 0;
         float melhor_dist = FLT_MAX;
 
+        // Compara o ponto atual com todos os K centroides.
         for (int c = 0; c < k; c++) {
+            // Calcula a distancia ao quadrado entre
+            // o ponto atual e o centroide c.
             float dd = distancia_quadrada(p, &C[(size_t)c * d], d);
+            // Se encontrou uma distancia menor,
+            // guarda a distancia e o indice do centroide.
             if (dd < melhor_dist) {
                 melhor_dist = dd;
                 melhor = c;
             }
         }
 
+        // Verifica se o ponto mudou de cluster.
         if (labels[i] != melhor) {
+            // Atualiza o cluster do ponto.
             labels[i] = melhor;
             mudancas++;
         }
     }
+    // Retorna o total de pontos que mudaram de cluster.
+    // Esse valor sera usado para verificar a convergencia.
     return mudancas;
 }
 
@@ -161,29 +174,44 @@ static void atualizar_centroides(const float *X, float *C, const int *labels,
                                  double *somas, long *contagens,
                                  double *somas_locais, long *contagens_locais,
                                  int n, int d, int k, int max_threads) {
+    // Quantidade de atributos de todos os K centroides.                                
     size_t kd = (size_t)k * d;
 
     // Zera os acumuladores individuais de todas as threads.
     memset(somas_locais, 0, (size_t)max_threads * kd * sizeof(double));
     memset(contagens_locais, 0, (size_t)max_threads * k * sizeof(long));
 
+    // Cria a regiao paralela.
+    // Cada thread utilizara seus proprios acumuladores para
+    // evitar escritas simultaneas nas mesmas posicoes.
     #pragma omp parallel
     {
+        // Identifica a thread atual.
         int tid = omp_get_thread_num(); // Numero da thread atual: 0, 1, 2...
+        // Localiza a regiao de somas reservada para esta thread.
         double *minhas_somas = &somas_locais[(size_t)tid * kd];
+        // Localiza a regiao de contagens reservada para esta thread.
         long *minhas_contagens = &contagens_locais[(size_t)tid * k];
         int i;
 
         // A diretiva for divide as iteracoes do laco entre as threads.
         #pragma omp for schedule(static)
         for (i = 0; i < n; i++) {
+            // Consulta a qual cluster o ponto pertence.
             int c = labels[i];
+            // Localiza os atributos do ponto atual.
             const float *p = &X[(size_t)i * d];
+            // Localiza as somas do cluster dentro
+            // dos acumuladores da thread atual.
             double *s = &minhas_somas[(size_t)c * d];
 
+            // Soma cada atributo do ponto ao acumulador local
+            // correspondente ao seu cluster.
             for (int j = 0; j < d; j++) {
                 s[j] += p[j];
             }
+            // Incrementa a quantidade de pontos desse cluster
+            // processados pela thread atual.
             minhas_contagens[c]++;
         }
     } // Aqui todas as threads ja terminaram suas somas locais.
@@ -192,9 +220,14 @@ static void atualizar_centroides(const float *X, float *C, const int *labels,
     memset(somas, 0, kd * sizeof(double));
     memset(contagens, 0, (size_t)k * sizeof(long));
 
+    // Combina sequencialmente os resultados das threads.
+    // Essa etapa possui custo menor que o processamento dos pontos.
     for (int t = 0; t < max_threads; t++) {
+        // Percorre todos os clusters.
         for (int c = 0; c < k; c++) {
+            // Soma as contagens locais ao total global do cluster.
             contagens[c] += contagens_locais[(size_t)t * k + c];
+            // Combina as somas de cada atributo do cluster.
             for (int j = 0; j < d; j++) {
                 somas[(size_t)c * d + j] +=
                     somas_locais[(size_t)t * kd + (size_t)c * d + j];
@@ -202,7 +235,8 @@ static void atualizar_centroides(const float *X, float *C, const int *labels,
         }
     }
 
-    // O centroide e a media dos pontos do seu cluster.
+    // Recalcula cada centroide usando a media
+    // dos pontos que pertencem ao seu cluster.
     for (int c = 0; c < k; c++) {
         if (contagens[c] == 0) continue; // Evita divisao por zero.
         for (int j = 0; j < d; j++) {
