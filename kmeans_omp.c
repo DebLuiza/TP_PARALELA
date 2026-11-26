@@ -120,9 +120,10 @@ static void inicializar_centroides(const float *X, float *C, int n, int d, int k
 static long atribuir_pontos(const float *X, const float *C, int *labels,
                             int n, int d, int k) {
     long mudancas = 0;
+    int i;
 
     #pragma omp parallel for reduction(+:mudancas) schedule(static)
-    for (int i = 0; i < n; i++) {
+    for (i = 0; i < n; i++) {
         const float *p = &X[(size_t)i * d];
         int melhor = 0;
         float melhor_dist = FLT_MAX;
@@ -171,10 +172,11 @@ static void atualizar_centroides(const float *X, float *C, const int *labels,
         int tid = omp_get_thread_num(); // Numero da thread atual: 0, 1, 2...
         double *minhas_somas = &somas_locais[(size_t)tid * kd];
         long *minhas_contagens = &contagens_locais[(size_t)tid * k];
+        int i;
 
         // A diretiva for divide as iteracoes do laco entre as threads.
         #pragma omp for schedule(static)
-        for (int i = 0; i < n; i++) {
+        for (i = 0; i < n; i++) {
             int c = labels[i];
             const float *p = &X[(size_t)i * d];
             double *s = &minhas_somas[(size_t)c * d];

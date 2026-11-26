@@ -1,5 +1,8 @@
 data/*.bin
 data/*.gz
+/.venv/
+/.toolchain/
+/build/
 *.exe
 kmeans_seq
 kmeans_omp

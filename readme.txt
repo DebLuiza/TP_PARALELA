@@ -55,9 +55,12 @@ Linux:
 Windows PowerShell:
 
   New-Item -ItemType Directory -Force data
-  py -m pip install numpy
-  curl.exe -L https://archive.ics.uci.edu/ml/machine-learning-databases/covtype/covtype.data.gz -o data/covtype.data.gz
-  py scripts/prepare_dataset.py data/covtype.data.gz data/covtype.bin --drop-last
+  py -m venv .venv
+  .\.venv\Scripts\python.exe -m pip install numpy
+  if (-not (Test-Path .\data\covtype.data.gz)) {
+    curl.exe -fL https://archive.ics.uci.edu/ml/machine-learning-databases/covtype/covtype.data.gz -o data/covtype.data.gz
+  }
+  .\.venv\Scripts\python.exe scripts\prepare_dataset.py data\covtype.data.gz data\covtype.bin --drop-last
 
 Formato do arquivo .bin:
   int32 N | int32 D | N*D float32 (ordem por linha)
@@ -76,6 +79,18 @@ Formato do arquivo .bin:
 
 4. COMPILACAO
 ---------------------------------------------------------------------
+Windows com Visual Studio Build Tools (compilador C++ x64 e Windows SDK):
+
+  .\compilar.cmd       # compila as tres versoes para build\
+  .\compilar.cmd cpu   # compila as versoes sequencial e OpenMP
+  .\compilar.cmd cuda  # compila apenas a versao CUDA
+
+O script localiza o CUDA Toolkit em .toolchain\cuda, em CUDA_PATH ou no
+PATH. A arquitetura padrao e sm_89 (RTX 4060). Para outra GPU, defina
+CUDA_ARCH para a arquitetura correspondente antes de compilar.
+
+Compilacao manual (MSYS2 e CUDA):
+
 Pre-requisitos usados no Windows:
   - MSYS2 UCRT64 com GCC e suporte a OpenMP;
   - Visual Studio Build Tools 2022 com as ferramentas C++ para o nvcc;
@@ -113,6 +128,13 @@ CUDA (RTX 4060 Ti, arquitetura sm_89):
 
 5. EXECUCAO
 ---------------------------------------------------------------------
+Se usou compilar.cmd, execute a partir da raiz do projeto no PowerShell:
+
+  .\build\kmeans_seq.exe .\data\covtype.bin 32 300
+  $env:OMP_NUM_THREADS = 8
+  .\build\kmeans_omp.exe .\data\covtype.bin 32 300
+  .\build\kmeans_cuda.exe .\data\covtype.bin 32 300
+
 Parametros: <dataset.bin> <K> <max_iter> [arquivo_rotulos.txt]
   K                  numero de clusters
   max_iter           limite de iteracoes
